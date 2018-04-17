@@ -1,0 +1,136 @@
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.2.3/milligram.min.css">
+  </head>
+  <body class="container" style="padding-top: 3%;">
+    <h2><a href="index.html">ethjs</a></h2>
+    <h4>SimpleStore Contract</h4>
+
+    <hr />
+
+    <div class="row">
+      <div class="column column-60">
+        <label>Set Value</label>
+        <input id="valueAmount" type="number" placeholder="i.e. 4500" />
+
+        <button id="setValue">Set Value</button>
+        <button id="getValue">Get Value</button>
+
+        <br /><br />
+
+        <div id="response" style="padding: 20px; border: 1px solid #9b4dca; word-wrap: break-word">
+          Deploying your contract...
+        </div>
+      </div>
+      <div class="column column-40">
+        <label>Bytecode</label>
+        <input id="bytecode" type="text" value="" />
+
+        <label>ABI</label>
+        <textarea id="abi"></textarea>
+      </div>
+    </div>
+
+    <br /><br />
+
+    <label>Solidity Code</label>
+
+    <pre><code>
+contract SimpleStore {
+  function set(uint _value) {
+    value = _value;
+  }
+
+  function get() constant returns (uint) {
+    return value;
+  }
+
+  uint value;
+}
+    </code></pre>
+
+    <script type="text/javascript" src="ethereumjs-testrpc.js"></script>
+    <script type="text/javascript" src="ethjs.js"></script>
+    <script type="text/javascript">
+      var eth = new Eth(TestRPC.provider());
+      var el = function(id){ return document.querySelector(id); };
+
+      /*
+      // uncomment to enable MetaMask support:
+      if (typeof window.web3 !== 'undefined' && typeof window.web3.currentProvider !== 'undefined') {
+        eth.setProvider(window.web3.currentProvider);
+      } else {
+        eth.setProvider(provider); // set to TestRPC if not available
+      }
+      */
+
+      eth.accounts().then(function(accounts) {
+        var SimpleStoreBytecode = '6060604052341561000f57600080fd5b60d78061001d6000396000f3006060604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c14606e575b600080fd5b3415605857600080fd5b606c60048080359060200190919050506094565b005b3415607857600080fd5b607e609e565b6040518082815260200191505060405180910390f35b8060008190555050565b60006001600054019050905600a165627a7a72305820179b5467131c2f433074c6c0948c26aaf21c2dee2e4f8d02620097548c0e42c90029';
+        var SimpleStoreABI =
+            [
+                {
+                    "constant": false,
+                    "inputs": [
+                        {
+                            "name": "_value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "set",
+                    "outputs": [],
+                    "payable": false,
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "constant": true,
+                    "inputs": [],
+                    "name": "get",
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "payable": false,
+                    "stateMutability": "view",
+                    "type": "function"
+                }
+            ];
+        var SimpleStore = eth.contract(SimpleStoreABI, SimpleStoreBytecode, { from: accounts[0], gas: 300000 });
+        var simpleStoreInstance;
+
+        el('#bytecode').value = SimpleStoreBytecode;
+        el('#abi').value = JSON.stringify(SimpleStoreABI);
+
+        SimpleStore.new({}).then(function(txHash){
+          var checkTransaction = setInterval(function(){
+            eth.getTransactionReceipt(txHash).then(function(receipt){
+              if (receipt) {
+                clearInterval(checkTransaction);
+                simpleStoreInstance = SimpleStore.at(receipt.contractAddress);
+
+                el('#response').innerHTML = 'Contract deployed to address: ' + String(receipt.contractAddress);
+                el('#setValue').addEventListener('click', function(){
+                  simpleStoreInstance.set(el('#valueAmount').value)
+                  .then(function(setTxHash){
+                    el('#response').innerHTML = 'Setting value... Your transaction hash is: ' + String(setTxHash);
+                  });
+                });
+
+                el('#getValue').addEventListener('click', function(){
+                  simpleStoreInstance.get().then(function(valueStored){
+                    el('#response').innerHTML = 'The value stored in the contract is: ' + valueStored[0].toString(10);
+                  });
+                });
+              }
+            });
+          }, 400);
+        })
+        .catch(function(error){
+          el('#response').innerHTML = 'There was an error: ' + String(error);
+        });
+      });
+    </script>
+  </body>
+</html>

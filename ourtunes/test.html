@@ -1,0 +1,91 @@
+
+<html>
+
+    <head>
+
+        <script language="JavaScript" type="text/javascript" src="jsbn.js"></script>
+        <script language="JavaScript" type="text/javascript" src="random.js"></script>
+        <script language="JavaScript" type="text/javascript" src="hash.js"></script>
+        <script language="JavaScript" type="text/javascript" src="rsa.js"></script>
+        <script language="JavaScript" type="text/javascript" src="aes.js"></script>
+        <script language="JavaScript" type="text/javascript" src="api.js"></script>
+
+        <script>
+
+        function print(string)
+        {
+            document.write(string + "\n\n");
+        }
+
+        print("<h1>Unsigned:</h1>");
+        var keys = []
+        for(var i=0;i<10;i++){
+            var PassPhrase = "Chasing Shadows"+i;
+            var Bits = 512;
+            var RSAkey = cryptico.generateRSAKey(PassPhrase, Bits);
+            var PublicKeyString = cryptico.publicKeyString(RSAkey);
+            keys.push({'rsa':RSAkey, 'pub':PublicKeyString});
+        }
+        console.log(keys)
+
+        for(var i=0;i<10;i++){
+
+            print((i+1)+" public key string:");
+            print(PublicKeyString);
+
+            var PlainText = "Matt, I need you to help me with my Starcraft strategy.";
+
+            print("Sam's message: " + PlainText);
+            var EncryptionResult = cryptico.encrypt(PlainText, PublicKeyString);
+            print("The encrypted message:");
+            print(EncryptionResult.cipher);
+
+            var DecryptionResult = cryptico.decrypt(EncryptionResult.cipher, RSAkey);
+
+            print("The decrypted message:");
+            print(DecryptionResult.plaintext);
+
+        }
+
+        </script>
+
+    </head>
+    
+    <body style="font-family: monospace; white-space:pre;">
+
+    </body>
+    
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
