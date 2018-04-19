@@ -1,24 +1,548 @@
 <html>
   <head>
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.2.3/milligram.min.css">
-    <title>ethjs examples</title>
   </head>
   <body class="container" style="padding-top: 3%;">
-    <h2><a href="http://github.com/ethjs" target="_blank">ethjs</a></h2>
-    <h4>Examples</h4>
+    <h2><a href="index.html">COL867</a></h2>
+    <h4>Licensing Media Contract</h4>
 
     <hr />
 
-    <a href="accounts.html">Account dApp</a> -- See your Ethereum accounts and balances
-    <br /><a href="ballot.html">Ballot dApp</a> -- The Ballot.sol dApp from the Solidity Read the docs
-    <br /><a href="blockchain-explorer.html">Blockchain Explorer</a> -- Lookup blocks and transactions on the Etheruem mainnet, via Infura.io
-    <br /><a href="first-contract.html">First Contract dApp</a> -- Set and Get from a SimpleStore contract
-    <br /><a href="simple-auction.html">Simple Auction dApp</a> -- A simple Ethereum auction from the Solidity examples
-    <br /><a href="token-wallet.html">Token Wallet</a> -- Send and receive EC20 standard tokens
-    <br /><a href="tictactoe.html">Tic Tac Toe</a> -- A game of tic tac toe, the winner gets the reward!
+    <div class="row">
+      <div class="column column-60">
+        <label>User</label>
+        <select id="user" class="addressSelector"></select>
+        <label>Add media</label>
+        <input id="url" type="text" placeholder="URL" />
+        <input id="icost" type="number" placeholder="Consumer Cost" />
+        <input id="ccost" type="number" placeholder="Company Cost" />
+        <div class="row">
+          <div id=stakeholders class="column column-30">
+            <select id="sh1" class="addressSelector"></select>
+            <select id="sh2" class="addressSelector"></select>
+            <select id="sh3" class="addressSelector"></select>
+            <select id="sh4" class="addressSelector"></select>
+            <select id="sh5" class="addressSelector"></select>
+          </div>
+          <div id=stakes class="column column-30">
+            <input id="st1" type="number" placeholder="stake" value="0"></input>
+            <input id="st2" type="number" placeholder="stake" value="0"></input>
+            <input id="st3" type="number" placeholder="stake" value="0"></input>
+            <input id="st4" type="number" placeholder="stake" value="0"></input>
+            <input id="st5" type="number" placeholder="stake" value="0"></input>
+          </div>
+        </div>
+        <button id="addMedia">Add media</button>
+        <button id="listMedia">List media</button>
 
-    <hr />
+        <br /><br />
 
-    <b>Repository</b> <a href="https://github.com/ethjs/examples" target="_blank">ethjs/examples</a>
+        <div id="response" style="padding: 20px; border: 1px solid #9b4dca; word-wrap: break-word">
+          Deploying your contract...
+        </div>
+
+        <div id="debug" style="padding: 20px; border: 1px solid #9b4dca; word-wrap: break-word">
+
+        </div>
+      </div>
+      <div class="column column-40">
+        <label>User Type</label>
+        <input id="user_type" disabled type="text" value="" />
+        <label>Balance</label>
+        <input id="balance" disabled type="text" value="" />
+        <label>MEDIA</label>
+        <table id="abi">
+        </table>
+      </div>
+    </div>
+    <button id="buy" value="1" style="display:none"></button>
+    <button id="gg" value="1" style="display:none"></button>
+    <br /><br />
+
+    <label>Solidity Code</label>
+
+    <pre><code>
+
+    contract SimpleStore {
+
+  mapping (address => uint) user_types;
+  // 1 -> creator, 2 -> consumer, 3 -> company
+  mapping (address => mapping (uint => uint)) states;
+  // 1-> bought, 2-> completed, 3-> aborted
+  mapping (address => mapping (uint => string)) enc_url;
+  mapping (address => string) public_keys;
+  uint[] media_ids;
+  struct med{
+      uint id;
+      uint256 consumer_cost;
+      uint256 company_cost;
+      address creator;
+      address[] buyers;
+      address[5] stakeholders;
+      uint[5] stakes;
+  }
+  mapping (uint => med) media;
+  function createUser(uint ut, string p_addr){
+      user_types[msg.sender] = ut;
+      public_keys[msg.sender] = p_addr;
+  }
+
+  function getUser() constant returns (uint){
+      return user_types[msg.sender];
+  }
+
+  function addMedia(uint id, uint256 company_cost, uint256 consumer_cost, address[5] stakeholders, uint[5] stakes){
+    require(user_types[msg.sender]==1);
+    media_ids.push(id);
+    media[id].id = id;
+    media[id].creator = msg.sender;
+    media[id].consumer_cost = consumer_cost;
+    media[id].company_cost = company_cost;
+    for(uint i = 0;i&lt;5;i++){
+        media[id].stakeholders[i] = stakeholders[i];
+        media[id].stakes[i] = stakes[i];
+    }
+  }
+
+  function listMedia() constant returns (uint256[4][]) {
+    uint256[4][] res;
+    res.length = media_ids.length;
+    for(uint i =0 ; i &lt; media_ids.length; i++){
+        res[i][0] = media[media_ids[i]].id;
+        res[i][1] = media[media_ids[i]].consumer_cost;
+        res[i][2] = media[media_ids[i]].company_cost;
+        res[i][3] = states[msg.sender][media_ids[i]];
+    }
+    return res;
+  }
+
+  function checkS() constant returns (uint){
+    return this.balance;
+  }
+
+  function sender() constant returns (address) {
+      return msg.sender;
+  }
+
+  function getBalance() constant returns (uint) {
+      return msg.sender.balance;
+  }
+
+  function buyMedia(uint media_id) payable{
+    if(user_types[msg.sender]==2)
+      require(msg.value == media[media_id].consumer_cost);
+    if(user_types[msg.sender]==3)
+      require(msg.value == media[media_id].company_cost);
+    require(states[msg.sender][media_id] == 0);
+    require(user_types[msg.sender] != 1);
+    states[msg.sender][media_id] = 1;
+    media[media_id].buyers.push(msg.sender);
+  }
+
+  function checkPurchases() constant returns (address, uint, address,string){
+      for(uint k=0;k&lt;media_ids.length;k++){
+          uint i = media_ids[k];
+          if(media[i].creator==msg.sender){
+              for(uint j=0;j&lt;media[i].buyers.length;j++){
+                if(states[media[i].buyers[j]][i]==1){
+                    return (media[i].buyers[j],i,msg.sender,public_keys[media[i].buyers[j]]);
+                }
+              }
+          }
+      }
+      return (0,0,0,"0");
+  }
+
+  function getEncUrl(uint media_id) constant returns (string){
+      return enc_url[msg.sender][media_id];
+  }
+
+  function finishPurchase(uint media_id, address buyer, string url) {
+      if(msg.sender==media[media_id].creator){
+      enc_url[buyer][media_id]=url;
+      states[buyer][media_id] = 2;
+      // stakeholder pay
+      uint i;
+      uint cost = media[media_id].consumer_cost;
+      if(user_types[buyer]==3)
+        cost = media[media_id].company_cost;
+      uint sum_stakes=0;
+      for(i = 0;i&lt;5;i++)
+        sum_stakes += media[media_id].stakes[i];
+      for(i=0;i&lt;5;i++)
+        media[media_id].stakeholders[i].transfer(cost * media[media_id].stakes[i] / sum_stakes);
+      }
+  }
+
+  uint value;
+}
+
+    </code></pre>
+
+    <script type="text/javascript" src="ethereumjs-testrpc.js"></script>
+    <script type="text/javascript" src="ethjs.js"></script>
+    <script language="JavaScript" type="text/javascript" src="jsbn.js"></script>
+    <script language="JavaScript" type="text/javascript" src="random.js"></script>
+    <script language="JavaScript" type="text/javascript" src="hash.js"></script>
+    <script language="JavaScript" type="text/javascript" src="rsa.js"></script>
+    <script language="JavaScript" type="text/javascript" src="aes.js"></script>
+    <script language="JavaScript" type="text/javascript" src="api.js"></script>
+    <script type="text/javascript">
+      var eth = new Eth(TestRPC.provider());
+      var el = function(id){ return document.querySelector(id); };
+
+
+      /*
+            // uncomment to enable MetaMask support:
+            if (typeof window.web3 !== 'undefined' && typeof window.web3.currentProvider !== 'undefined') {
+              eth.setProvider(window.web3.currentProvider);
+            } else {
+              eth.setProvider(provider); // set to TestRPC if not available
+            }
+            */
+      function buy(id){
+          el('#buy').value = id;
+          el('#buy').click();
+      }
+
+      function gg(id){
+          el('#gg').value = id;
+          el('#gg').click();
+      }
+      eth.accounts().then(function(accounts) {
+        var SimpleStoreBytecode = '6060604052341561000f57600080fd5b6116208061001e6000396000f3006060604052600436106100af576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806312065fe0146100b45780632efbf57e146100dd5780634d13aee714610143578063558a2b8b146101df57806367e404ce146102da5780636d793e1e1461032f578063832880e7146103475780638caf8ac41461037057806394ca73b214610399578063ad5996c314610426578063fcd889f0146104b3575b600080fd5b34156100bf57600080fd5b6100c7610538565b6040518082815260200191505060405180910390f35b34156100e857600080fd5b610141600480803590602001909190803590602001908201803590602001908080601f01602080910402602001604051908101604052809392919081815260200183838082843782019150505050505091905050610557565b005b341561014e57600080fd5b61016460048080359060200190919050506105f2565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156101a4578082015181840152602081019050610189565b50505050905090810190601f1680156101d15780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b34156101ea57600080fd5b6101f26106ea565b604051808573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020018481526020018373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200180602001828103825283818151815260200191508051906020019080838360005b8381101561029c578082015181840152602081019050610281565b50505050905090810190601f1680156102c95780820380516001836020036101000a031916815260200191505b509550505050505060405180910390f35b34156102e557600080fd5b6102ed610a58565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b6103456004808035906020019091905050610a60565b005b341561035257600080fd5b61035a610cb4565b6040518082815260200191505060405180910390f35b341561037b57600080fd5b610383610cfa565b6040518082815260200191505060405180910390f35b34156103a457600080fd5b6103ac610d19565b60405180806020018281038252838181518152602001915080516000925b8184101561041557828490602001906020020151600460200280838360005b838110156104045780820151818401526020810190506103e9565b5050505090500192600101926103ca565b925050509250505060405180910390f35b341561043157600080fd5b6104b16004808035906020019091908035906020019091908035906020019091908060a001906005806020026040519081016040528092919082600560200280828437820191505050505091908060a001906005806020026040519081016040528092919082600560200280828437820191505050505091905050610f9f565b005b34156104be57600080fd5b610536600480803590602001909190803573ffffffffffffffffffffffffffffffffffffffff1690602001909190803590602001908201803590602001908080601f01602080910402602001604051908101604052809392919081815260200183838082843782019150505050505091905050611190565b005b60003373ffffffffffffffffffffffffffffffffffffffff1631905090565b816000803373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555080600360003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002090805190602001906105ed929190611455565b505050565b6105fa6114d5565b600260003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008381526020019081526020016000208054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156106de5780601f106106b3576101008083540402835291602001916106de565b820191906000526020600020905b8154815290600101906020018083116106c157829003601f168201915b50505050509050919050565b60008060006106f76114d5565b60008060008092505b600480549050831015610a025760048381548110151561071c57fe5b90600052602060002090015491503373ffffffffffffffffffffffffffffffffffffffff166005600084815260200190815260200160002060030160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1614156109f557600090505b60056000838152602001908152602001600020600401805490508110156109f457600180600060056000868152602001908152602001600020600401848154811015156107e257fe5b906000526020600020900160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008481526020019081526020016000205414156109e757600560008381526020019081526020016000206004018181548110151561088357fe5b906000526020600020900160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1682336003600060056000888152602001908152602001600020600401868154811015156108d857fe5b906000526020600020900160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020808054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156109d35780601f106109a8576101008083540402835291602001916109d3565b820191906000526020600020905b8154815290600101906020018083116109b657829003601f168201915b505050505090509650965096509650610a4f565b8080600101915050610799565b5b8280600101935050610700565b60008060008292508191508090506040805190810160405280600181526020017f300000000000000000000000000000000000000000000000000000000000000081525096509650965096505b50505090919293565b600033905090565b60026000803373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020541415610acc57600560008281526020019081526020016000206001015434141515610acb57600080fd5b5b60036000803373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020541415610b3857600560008281526020019081526020016000206002015434141515610b3757600080fd5b5b6000600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083815260200190815260200160002054141515610b9757600080fd5b60016000803373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000205414151515610be557600080fd5b60018060003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083815260200190815260200160002081905550600560008281526020019081526020016000206004018054806001018281610c6291906114e9565b9160005260206000209001600033909190916101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505050565b60008060003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002054905090565b60003073ffffffffffffffffffffffffffffffffffffffff1631905090565b610d21611515565b6000806004805490508281610d369190611529565b50600090505b600480549050811015610f105760056000600483815481101515610d5c57fe5b9060005260206000209001548152602001908152602001600020600001548282815481101515610d8857fe5b90600052602060002090600402016000600481101515610da457fe5b018190555060056000600483815481101515610dbc57fe5b9060005260206000209001548152602001908152602001600020600101548282815481101515610de857fe5b90600052602060002090600402016001600481101515610e0457fe5b018190555060056000600483815481101515610e1c57fe5b9060005260206000209001548152602001908152602001600020600201548282815481101515610e4857fe5b90600052602060002090600402016002600481101515610e6457fe5b0181905550600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000600483815481101515610eb957fe5b9060005260206000209001548152602001908152602001600020548282815481101515610ee257fe5b90600052602060002090600402016003600481101515610efe57fe5b01819055508080600101915050610d3c565b81805480602002602001604051908101604052809291908181526020016000905b82821015610f945783829060005260206000209060040201600480602002604051908101604052809291908260048015610f80576020028201915b815481526020019060010190808311610f6c575b505050505081526020019060010190610f31565b505050509250505090565b600060016000803373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002054141515610fee57600080fd5b60048054806001018281611002919061155b565b916000526020600020900160008890919091505550856005600088815260200190815260200160002060000181905550336005600088815260200190815260200160002060030160006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550836005600088815260200190815260200160002060010181905550846005600088815260200190815260200160002060020181905550600090505b60058110156111885782816005811015156110d957fe5b6020020151600560008881526020019081526020016000206005018260058110151561110157fe5b0160006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550818160058110151561114e57fe5b602002015160056000888152602001908152602001600020600a018260058110151561117657fe5b018190555080806001019150506110c2565b505050505050565b60008060006005600087815260200190815260200160002060030160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16141561144d5783600260008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008881526020019081526020016000209080519060200190611263929190611455565b506002600160008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000888152602001908152602001600020819055506005600087815260200190815260200160002060010154915060036000808773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002054141561133457600560008781526020019081526020016000206002015491505b60009050600092505b600583101561137c5760056000878152602001908152602001600020600a018360058110151561136957fe5b015481019050828060010193505061133d565b600092505b600583101561144c5760056000878152602001908152602001600020600501836005811015156113ad57fe5b0160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166108fc82600560008a8152602001908152602001600020600a018660058110151561140c57fe5b0154850281151561141957fe5b049081150290604051600060405180830381858888f19350505050151561143f57600080fd5b8280600101935050611381565b5b505050505050565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f1061149657805160ff19168380011785556114c4565b828001600101855582156114c4579182015b828111156114c35782518255916020019190600101906114a8565b5b5090506114d19190611587565b5090565b602060405190810160405280600081525090565b8154818355818115116115105781836000526020600020918201910161150f9190611587565b5b505050565b602060405190810160405280600081525090565b8154818355818115116115565760040281600402836000526020600020918201910161155591906115ac565b5b505050565b815481835581811511611582578183600052602060002091820191016115819190611587565b5b505050565b6115a991905b808211156115a557600081600090555060010161158d565b5090565b90565b6115d591905b808211156115d157600081816115c891906115d8565b506004016115b2565b5090565b90565b50600081556001016000815560010160008155600101600090555600a165627a7a723058208a79480aa0ee99c7162dbc91b6811a81c1e6de9adea2ac56cd38ab77715f1f930029';
+        var SimpleStoreABI =
+            [
+                {
+                    "constant": true,
+                    "inputs": [],
+                    "name": "getBalance",
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "payable": false,
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "constant": false,
+                    "inputs": [
+                        {
+                            "name": "ut",
+                            "type": "uint256"
+                        },
+                        {
+                            "name": "p_addr",
+                            "type": "string"
+                        }
+                    ],
+                    "name": "createUser",
+                    "outputs": [],
+                    "payable": false,
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "constant": true,
+                    "inputs": [
+                        {
+                            "name": "media_id",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "getEncUrl",
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "string"
+                        }
+                    ],
+                    "payable": false,
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "constant": true,
+                    "inputs": [],
+                    "name": "checkPurchases",
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address"
+                        },
+                        {
+                            "name": "",
+                            "type": "uint256"
+                        },
+                        {
+                            "name": "",
+                            "type": "address"
+                        },
+                        {
+                            "name": "",
+                            "type": "string"
+                        }
+                    ],
+                    "payable": false,
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "constant": true,
+                    "inputs": [],
+                    "name": "sender",
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "payable": false,
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "constant": false,
+                    "inputs": [
+                        {
+                            "name": "media_id",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "buyMedia",
+                    "outputs": [],
+                    "payable": true,
+                    "stateMutability": "payable",
+                    "type": "function"
+                },
+                {
+                    "constant": true,
+                    "inputs": [],
+                    "name": "getUser",
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "payable": false,
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "constant": true,
+                    "inputs": [],
+                    "name": "checkS",
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "payable": false,
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "constant": true,
+                    "inputs": [],
+                    "name": "listMedia",
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint256[4][]"
+                        }
+                    ],
+                    "payable": false,
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "constant": false,
+                    "inputs": [
+                        {
+                            "name": "id",
+                            "type": "uint256"
+                        },
+                        {
+                            "name": "company_cost",
+                            "type": "uint256"
+                        },
+                        {
+                            "name": "consumer_cost",
+                            "type": "uint256"
+                        },
+                        {
+                            "name": "stakeholders",
+                            "type": "address[5]"
+                        },
+                        {
+                            "name": "stakes",
+                            "type": "uint256[5]"
+                        }
+                    ],
+                    "name": "addMedia",
+                    "outputs": [],
+                    "payable": false,
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "constant": false,
+                    "inputs": [
+                        {
+                            "name": "media_id",
+                            "type": "uint256"
+                        },
+                        {
+                            "name": "buyer",
+                            "type": "address"
+                        },
+                        {
+                            "name": "url",
+                            "type": "string"
+                        }
+                    ],
+                    "name": "finishPurchase",
+                    "outputs": [],
+                    "payable": false,
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                }
+            ];
+        var SimpleStore = eth.contract(SimpleStoreABI, SimpleStoreBytecode, { from: accounts[0], gas: 3000000 });
+        var simpleStoreInstance;
+        var keys = {};
+        var urls = {};
+        SimpleStore.new({}).then(function(txHash){
+          var checkTransaction = setInterval(function(){
+            eth.getTransactionReceipt(txHash).then(function(receipt){
+              if (receipt) {
+                  // checkPurchases();
+                  setInterval(function(){ checkPurchases(); }, 5000);
+                  clearInterval(checkTransaction);
+                simpleStoreInstance = SimpleStore.at(receipt.contractAddress);
+
+                document.querySelectorAll('.addressSelector').forEach(function(selector){
+                      accounts.forEach(function(account){
+                          selector.innerHTML += '<option value="' + account + '">' + account + '</option>';
+                      });
+                  });
+                el('#response').innerHTML = 'Contract deployed to address: ' + String(receipt.contractAddress);
+                  for(var  i = 0 ; i< 10; i++){
+                      var PassPhrase = "Chasing Shadows"+i;
+                      var Bits = 512;
+                      var RSAkey = cryptico.generateRSAKey(PassPhrase, Bits);
+                      var PublicKeyString = cryptico.publicKeyString(RSAkey);
+                      simpleStoreInstance.createUser(i%3+1,PublicKeyString,{from:accounts[i]});
+                      keys[accounts[i]] = ({'private_key':RSAkey});
+                  }
+                el('#addMedia').addEventListener('click', function(){
+                  var url = el('#url').value;
+                  var stakeholders = [];
+                  var stakes = [];
+                  var id = Math.floor(Math.random()*1e5);
+                  for(var i=0;i<5;i++){
+                      stakes[i] = el('#stakes').childNodes[2*i+1].value;
+                      stakeholders[i] = el('#stakeholders').childNodes[2*i+1].value;
+                  }
+                  simpleStoreInstance.addMedia(id,
+                      Eth.toWei(el('#ccost').value,'ether'),
+                      Eth.toWei(el('#icost').value,'ether'),stakeholders,stakes,{from:el('#user').value})
+                  .then(function(ut){
+                      urls[id] = url;
+                      console.log(urls);
+                  });
+                });
+
+                el('#listMedia').addEventListener('click', function(){
+                    simpleStoreInstance.listMedia({from:el('#user').value}).then(function (list) {
+                        el('#abi').innerHTML = '<tr><th>Media ID</th><td>Consumer Price</td><td>Company Price</td></tr>';
+                        console.log(list);
+                        for(var i=0; i < list[0].length; i ++){
+                          el('#abi').innerHTML += '<tr id="media_'+list[0][i][0].words[0]+'"><td>'+list[0][i][0].words[0]+'</td><td>'+ Eth.fromWei(list[0][i][1],'ether')
+                              +'</td><td>'+Eth.fromWei(list[0][i][2],'ether');
+                              if(list[0][i][3].words[0]==2)
+                                  el('#abi').innerHTML += '</td><td><button class="buy" id="gg_'+list[0][i][0].words[0]+'" onclick="gg('+list[0][i][0].words[0]+')">get</button></td></tr>';
+                              else if(list[0][i][3].words[0]==0)
+                                  el('#abi').innerHTML += '</td><td><button class="buy" id="bb_'+list[0][i][0].words[0]+'" onclick="buy('+list[0][i][0].words[0]+')">buy</button></td></tr>';
+                              else
+                                  el('#abi').innerHTML += '</td><td><button disabled class="buy" id="bb_'+list[0][i][0].words[0]+'" onclick="buy('+list[0][i][0].words[0]+')">buy</button></td></tr>';
+                        }
+                    });
+                });
+                  el('#buy').addEventListener('click',function() {
+                      var id = this.value;
+                      var ic = parseInt(el('#media_'+id).childNodes[1].innerHTML);
+                      var cc = parseInt(el('#media_'+id).childNodes[2].innerHTML);
+                      simpleStoreInstance.getUser({from:el('#user').value}).then(function(ut){
+                          var c = ic;
+                          if(ut[0]==2){
+                              c = cc;
+                          }
+                          c = Eth.toWei(c,'ether');
+                          console.log(c);
+                          simpleStoreInstance.buyMedia(parseInt(id),{from:el('#user').value,
+                              value: c,}).then(function(ut){
+                              console.log(ut);
+                          });
+                      });
+
+                  });
+                  el('#gg').addEventListener('click',function() {
+                      var id = this.value;
+                      simpleStoreInstance.getEncUrl(id,{from:el('#user').value}).then(function(ut){
+                          if(ut[0]!="")
+                            el('#response').innerHTML = 'Your URL: ' + cryptico.decrypt(String(ut[0]),keys[el('#user').value].private_key).plaintext;
+                          else
+                            el('#response').innerHTML = 'Not bought';
+                      });
+
+                  });
+                  el('#user').addEventListener('change',function userType() {
+                      // el('#user_type').value = x;
+                      simpleStoreInstance.getUser({from:el('#user').value}).then(function(ut){
+                          if(ut[0]==1)
+                            el('#user_type').value = 'Creator';
+                          else if(ut[0]==2)
+                            el('#user_type').value = 'Consumer';
+                          else
+                            el('#user_type').value = 'Company';
+                      });
+                      simpleStoreInstance.getBalance({from:el('#user').value}).then(function(ut){
+                          el('#balance').value = Eth.fromWei(ut[0],'ether');
+                          console.log(Eth.fromWei(ut[0],'ether'));
+                      });
+                      simpleStoreInstance.checkS({from:el('#user').value}).then(function(ut){
+                          console.log(Eth.fromWei(ut[0],'ether'));
+                      });
+                  });
+                function checkPurchases(){
+                    for(var i=0;i<accounts.length;i++){
+                      var account = accounts[i];
+                      simpleStoreInstance.checkPurchases({from:account}).then(function(ut) {
+                          if (ut[0] != 0) {
+                              var url = urls[ut[1]];
+                              var enc_url = cryptico.encrypt(url, ut[3]).cipher;
+                              console.log(ut);
+                              simpleStoreInstance.finishPurchase(parseInt(ut[1]), ut[0], enc_url, {from: ut[2]}).then(function (ut) {
+                                  // console.log(ut);
+                              })
+                          }
+                      });
+                    };
+                  }
+              }
+            });
+          }, 400);
+        })
+        .catch(function(error){
+          el('#response').innerHTML = 'There was an error: ' + String(error);
+        });
+      });
+    </script>
   </body>
 </html>
